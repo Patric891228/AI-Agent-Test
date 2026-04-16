@@ -26,7 +26,7 @@ class TranslationPipeline:
     def run_once(self) -> PipelineResult:
         start = time.perf_counter()
         frame = self._capture.capture()
-        source_text = self._ocr.extract_text(frame)
+        source_text = self._ocr.extract_text(frame.image_bytes)
         translated_text = self._translator.translate(
             source_text,
             self._config.source_lang,

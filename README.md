@@ -12,15 +12,15 @@ Implemented:
 
 - Config loading from `config.yaml`
 - Periodic pipeline execution every `capture_interval_ms`
+- Real ROI screenshot capture on Windows
 - ROI metadata flow through the capture stage
 - OCR stub
 - Translation stub
 - Console logging for pipeline result and elapsed time
-- Minimal unit test for pipeline integration
+- Unit tests for pipeline wiring, config parsing, and capture behavior
 
 Not implemented yet:
 
-- Real desktop or game window capture
 - Real OCR engine
 - Real translation backend
 - Real on-screen overlay
@@ -33,12 +33,13 @@ Not implemented yet:
 - `config.yaml`: runtime config
 - `src/app.py`: bootstraps config, logging, and pipeline
 - `src/config.py`: YAML loader and config dataclasses
-- `src/capture.py`: capture interface and stub frame generation
+- `src/capture.py`: ROI screen capture and frame image payload generation
 - `src/ocr.py`: OCR stub
 - `src/translate.py`: translation stub
 - `src/pipeline.py`: capture -> OCR -> translate -> overlay orchestration
 - `src/overlay.py`: console overlay stub
 - `tests/test_pipeline.py`: minimal end-to-end unit test for pipeline wiring
+- `tests/test_config.py`: config parsing and capture behavior tests
 
 ## How To Run Locally
 
@@ -88,29 +89,29 @@ Fields:
 - `source_lang`: OCR source language
 - `target_lang`: translation target language
 - `capture_interval_ms`: pipeline interval in milliseconds
-- `roi`: region of interest for future real screen capture
+- `roi`: region of interest for desktop ROI capture
 
 ## Current V1 Behavior
 
-`ScreenCapture.capture()` currently returns a fake `Frame` with ROI metadata and `content_id="stub-frame"`.
+`ScreenCapture.capture()` currently returns a `Frame` with ROI metadata and raw BGRA screenshot bytes captured from the configured desktop region.
 
 `StubOCR.extract_text()` currently returns:
 
 ```text
-Detected text from stub-frame
+Detected text from image buffer (<n> bytes)
 ```
 
 `StubTranslator.translate()` currently returns:
 
 ```text
-[ja->zh-TW] translated: Detected text from stub-frame
+[ja->zh-TW] translated: Detected text from image buffer (<n> bytes)
 ```
 
 The overlay stage does not draw on screen yet. It only logs the translated text through the console.
 
 ## Known Constraints
 
-- No real screenshot is taken yet
+- Real capture currently targets the desktop ROI only
 - No game window binding yet
 - No OCR accuracy or translation quality validation yet
 - No CLI arguments yet
@@ -118,22 +119,21 @@ The overlay stage does not draw on screen yet. It only logs the translated text 
 
 ## Suggested Next Step
 
-The most reasonable next step is to replace stub capture with a real ROI screenshot implementation while keeping OCR and translation as stubs.
+The most reasonable next step is to replace the OCR stub with a real OCR backend now that capture returns real image data.
 
 Recommended order:
 
-1. Implement actual screen capture in `src/capture.py`
-2. Keep returning an image object or bytes from capture
-3. Adjust OCR interface so it accepts real image data
-4. Keep OCR output stubbed until capture is stable
-5. Add tests around config parsing and capture behavior
+1. Replace `StubOCR` with a real OCR backend
+2. Decode the raw BGRA buffer into the image format expected by the OCR engine
+3. Keep translation stubbed until OCR is stable
+4. Add tests around OCR extraction behavior
+5. Validate OCR quality against a few representative game screenshots
 
 After that:
 
-1. Replace `StubOCR` with a real OCR backend
-2. Add text deduplication to avoid repeated translation calls
-3. Replace `StubTranslator` with a real translation service
-4. Add a real transparent overlay window
+1. Add text deduplication to avoid repeated translation calls
+2. Replace `StubTranslator` with a real translation service
+3. Add a real transparent overlay window
 
 ## Resume Checklist
 

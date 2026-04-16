@@ -7,12 +7,17 @@ from src.pipeline import TranslationPipeline
 
 class FakeCapture:
     def capture(self) -> Frame:
-        return Frame(roi=(0, 0, 100, 50), content_id="test-frame", captured_at=0.0)
+        return Frame(
+            roi=(0, 0, 100, 50),
+            content_id="test-frame",
+            captured_at=0.0,
+            image_bytes=b"test-image",
+        )
 
 
 class FakeOCR:
-    def extract_text(self, frame: Frame) -> str:
-        return f"text:{frame.content_id}"
+    def extract_text(self, image_bytes: bytes) -> str:
+        return f"text:{image_bytes.decode('ascii')}"
 
 
 class FakeTranslator:
@@ -48,10 +53,10 @@ class TranslationPipelineTest(unittest.TestCase):
 
         result = pipeline.run_once()
 
-        self.assertEqual(result.source_text, "text:test-frame")
-        self.assertEqual(result.translated_text, "ja->zh-TW:text:test-frame")
+        self.assertEqual(result.source_text, "text:test-image")
+        self.assertEqual(result.translated_text, "ja->zh-TW:text:test-image")
         self.assertGreaterEqual(result.elapsed_ms, 0)
-        self.assertEqual(overlay.messages, ["ja->zh-TW:text:test-frame"])
+        self.assertEqual(overlay.messages, ["ja->zh-TW:text:test-image"])
 
 
 if __name__ == "__main__":
