@@ -1,0 +1,8 @@
+source_lang: ja
+target_lang: zh-TW
+capture_interval_ms: 300
+roi:
+  x: 100
+  y: 100
+  w: 640
+  h: 180
