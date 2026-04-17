@@ -16,8 +16,8 @@ class FakeCapture:
 
 
 class FakeOCR:
-    def extract_text(self, image_bytes: bytes) -> str:
-        return f"text:{image_bytes.decode('ascii')}"
+    def extract_text(self, frame: Frame) -> str:
+        return f"text:{frame.image_bytes.decode('ascii')}"
 
 
 class FakeTranslator:

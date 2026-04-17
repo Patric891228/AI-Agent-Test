@@ -4,7 +4,9 @@ __pycache__/
 .coverage
 htmlcov/
 .venv/
+.venv_build/
 venv/
 env/
 dist/
 build/
+tests/tmp*/

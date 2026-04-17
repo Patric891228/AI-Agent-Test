@@ -1,6 +1,5 @@
-import tempfile
 import unittest
-from pathlib import Path
+from unittest.mock import mock_open, patch
 
 from src.capture import ScreenCapture
 from src.config import AppConfig, ROI, load_config
@@ -27,11 +26,8 @@ roi:
   w: 320
   h: 120
 """
-        with tempfile.TemporaryDirectory() as temp_dir:
-            config_path = Path(temp_dir) / "config.yaml"
-            config_path.write_text(config_text, encoding="utf-8")
-
-            config = load_config(str(config_path))
+        with patch("builtins.open", mock_open(read_data=config_text)):
+            config = load_config("config.yaml")
 
         self.assertEqual(config.source_lang, "en")
         self.assertEqual(config.target_lang, "zh-TW")

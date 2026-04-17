@@ -2,7 +2,7 @@ import logging
 
 from src.capture import ScreenCapture
 from src.config import load_config
-from src.ocr import StubOCR
+from src.ocr import TesseractOCR
 from src.pipeline import TranslationPipeline
 from src.translate import StubTranslator
 
@@ -19,7 +19,7 @@ def run() -> None:
     config = load_config("config.yaml")
     pipeline = TranslationPipeline(
         capture=ScreenCapture(config),
-        ocr=StubOCR(),
+        ocr=TesseractOCR(config.source_lang),
         translator=StubTranslator(),
         config=config,
         interval_ms=config.capture_interval_ms,

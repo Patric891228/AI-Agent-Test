@@ -14,14 +14,13 @@ Implemented:
 - Periodic pipeline execution every `capture_interval_ms`
 - Real ROI screenshot capture on Windows
 - ROI metadata flow through the capture stage
-- OCR stub
+- Real OCR backend wiring via Tesseract
 - Translation stub
 - Console logging for pipeline result and elapsed time
-- Unit tests for pipeline wiring, config parsing, and capture behavior
+- Unit tests for pipeline wiring, config parsing, capture behavior, and OCR conversion
 
 Not implemented yet:
 
-- Real OCR engine
 - Real translation backend
 - Real on-screen overlay
 - Duplicate text filtering
@@ -34,12 +33,13 @@ Not implemented yet:
 - `src/app.py`: bootstraps config, logging, and pipeline
 - `src/config.py`: YAML loader and config dataclasses
 - `src/capture.py`: ROI screen capture and frame image payload generation
-- `src/ocr.py`: OCR stub
+- `src/ocr.py`: Tesseract OCR backend with BGRA frame decoding
 - `src/translate.py`: translation stub
 - `src/pipeline.py`: capture -> OCR -> translate -> overlay orchestration
 - `src/overlay.py`: console overlay stub
 - `tests/test_pipeline.py`: minimal end-to-end unit test for pipeline wiring
 - `tests/test_config.py`: config parsing and capture behavior tests
+- `tests/test_ocr.py`: OCR frame decoding and backend invocation tests
 
 ## How To Run Locally
 
@@ -50,6 +50,11 @@ python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
 ```
+
+Additional runtime dependency:
+
+- Install Tesseract OCR and ensure `tesseract` is available on `PATH`
+- Or place a portable copy under `vendor/tesseract/` so the app can use the bundled binary
 
 Run the app:
 
@@ -95,11 +100,13 @@ Fields:
 
 `ScreenCapture.capture()` currently returns a `Frame` with ROI metadata and raw BGRA screenshot bytes captured from the configured desktop region.
 
-`StubOCR.extract_text()` currently returns:
+`TesseractOCR.extract_text()` currently:
 
-```text
-Detected text from image buffer (<n> bytes)
-```
+- Decodes the raw BGRA frame into a PNG image
+- Prefers a bundled `vendor/tesseract/tesseract.exe` when present, otherwise falls back to the local `tesseract` on `PATH`
+- Sets `TESSDATA_PREFIX` automatically when a nearby `tessdata` folder is found
+- Invokes the resolved `tesseract` executable with the configured source language
+- Returns the extracted OCR text after trimming trailing whitespace
 
 `StubTranslator.translate()` currently returns:
 
@@ -112,28 +119,80 @@ The overlay stage does not draw on screen yet. It only logs the translated text 
 ## Known Constraints
 
 - Real capture currently targets the desktop ROI only
+- OCR depends on Tesseract language packs, either from a local installation or a bundled `vendor/tesseract/tessdata`
 - No game window binding yet
-- No OCR accuracy or translation quality validation yet
+- No OCR quality or translation quality validation yet
 - No CLI arguments yet
 - `main.py` currently runs a fixed iteration count for demo purposes
 
+## Packaging For Other Users
+
+If you want to distribute the app without asking users to install Tesseract separately:
+
+1. Put a portable Tesseract build in `vendor/tesseract/`
+2. Make sure `vendor/tesseract/tessdata/` includes the languages your config needs, such as `jpn.traineddata` and `chi_tra.traineddata`
+3. Install PyInstaller in the same Python environment you will use for packaging
+4. Verify which Python executable your terminal is using:
+
+```bash
+where python
+python -m PyInstaller --version
+```
+
+On Windows it is common to have multiple Python installations. If `python -m PyInstaller --version` works in your terminal, use that same terminal for packaging.
+
+5. Build with either of these commands:
+
+```bash
+powershell -ExecutionPolicy Bypass -File .\scripts\build.ps1
+python -m PyInstaller --noconfirm AI-Agent-Test.spec
+```
+
+The PowerShell build script prefers `.venv\Scripts\python.exe` when that virtual environment exists and is healthy. If your terminal uses another Python installation, the direct `python -m PyInstaller --noconfirm AI-Agent-Test.spec` command is the safest option.
+
+6. Distribute the generated executable from `dist/AI-Agent-Test.exe`
+
+The included `AI-Agent-Test.spec` file automatically packages:
+
+- `config.yaml`
+- The whole `vendor/tesseract/` folder when it exists
+
+If you need to override the OCR executable path manually, set:
+
+```bash
+AI_AGENT_TESSERACT_CMD=C:\path\to\tesseract.exe
+```
+
+Before sending the packaged app to someone else, do a local smoke test:
+
+```bash
+.\dist\AI-Agent-Test.exe
+```
+
+If the executable starts but OCR fails, check these first:
+
+- `vendor/tesseract/tesseract.exe` exists
+- `vendor/tesseract/tessdata/` exists
+- The required language packs are present, for example `jpn.traineddata`
+- `config.yaml` matches the language packs you bundled
+
 ## Suggested Next Step
 
-The most reasonable next step is to replace the OCR stub with a real OCR backend now that capture returns real image data.
+The most reasonable next step is to reduce unnecessary translation work now that OCR is producing real text.
 
 Recommended order:
 
-1. Replace `StubOCR` with a real OCR backend
-2. Decode the raw BGRA buffer into the image format expected by the OCR engine
-3. Keep translation stubbed until OCR is stable
-4. Add tests around OCR extraction behavior
-5. Validate OCR quality against a few representative game screenshots
+1. Add duplicate text filtering so unchanged subtitles do not trigger repeated translations
+2. Keep translation stubbed until OCR output is validated on representative screenshots
+3. Add OCR-focused regression samples for a few common subtitle layouts
+4. Replace `StubTranslator` with a real translation service
+5. Add error handling and retries around OCR and translation failures
 
 After that:
 
-1. Add text deduplication to avoid repeated translation calls
-2. Replace `StubTranslator` with a real translation service
-3. Add a real transparent overlay window
+1. Add a real transparent overlay window
+2. Add async pipeline scheduling
+3. Add game-window binding instead of desktop-only ROI capture
 
 ## Resume Checklist
 
